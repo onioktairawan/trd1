@@ -25,14 +25,34 @@ HTML_TEMPLATE = """
 <head>
   <meta charset=\"UTF-8\">
   <title>Jurnal Trading</title>
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
   <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css\" rel=\"stylesheet\">
   <link href=\"https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css\" rel=\"stylesheet\">
+  <link href=\"https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css\" rel=\"stylesheet\">
   <style>
     body.dark { background-color: #121212 !important; color: #f0f0f0; }
-    .dark .table, .dark .form-control, .dark .btn { color: #fff; background-color: #333 !important; }
-    .result-tp { color: green; font-weight: bold; }
+    .dark .table, .dark .form-control, .dark .btn { background-color: #333 !important; color: #fff; border-color: #555; }
+    .dark .card { background-color: #1e1e1e; border-color: #444; }
+    .dark .card-title, .dark .card-text { color: #f0f0f0 !important; }
+    .dark .dataTables_wrapper,
+    .dark .dataTables_filter input,
+    .dark .dataTables_length select,
+    .dark .paginate_button,
+    .dark .table-striped > tbody > tr:nth-of-type(odd) {
+      background-color: #1e1e1e !important;
+      color: #f0f0f0 !important;
+      border-color: #444 !important;
+    }
+    .dark .paginate_button.current {
+      background-color: #444 !important;
+      color: #fff !important;
+    }
+    .result-tp { color: limegreen; font-weight: bold; }
     .result-sl { color: red; font-weight: bold; }
     .theme-toggle { position: fixed; top: 1rem; right: 1rem; cursor: pointer; }
+    @media (max-width: 768px) {
+      .table-responsive { overflow-x: auto; }
+    }
   </style>
 </head>
 <body class=\"bg-light p-4\" id=\"body\">
@@ -43,7 +63,7 @@ HTML_TEMPLATE = """
     <div class=\"d-flex justify-content-end\">
       <a href=\"/logout\" class=\"btn btn-outline-danger mb-3\">Logout ({{ session['username'] }})</a>
     </div>
-    <h2 class=\"text-center mb-4\">📒 Jurnal Trading Harian</h2>
+    <h2 class=\"text-center mb-4\">Jurnal Trading XAUUSD</h2>
     {% if edit_data %}
     <form method=\"POST\" action=\"/edit/{{ edit_data._id }}\" class=\"mb-5\">
     {% else %}
@@ -89,67 +109,105 @@ HTML_TEMPLATE = """
       <a href=\"/export\" class=\"btn btn-success mt-4 ms-2\">Export CSV</a>
     </form>
 
-    <div class=\"mb-4\">
-      <h5>📊 Ringkasan Statistik</h5>
-      <ul>
-        <li>Total trade: {{ stats.total }}</li>
-        <li>Total TP: {{ stats.tp }}</li>
-        <li>Total SL: {{ stats.sl }}</li>
-        <li>Winrate: {{ stats.winrate }}%</li>
-        <li>Growth: ${{ '%.2f'|format(stats.growth) }}</li>
-      </ul>
+    <div class=\"row mb-4\">
+      <div class=\"col-md-3\">
+        <div class=\"card text-center\">
+          <div class=\"card-body\">
+            <h5 class=\"card-title\">Total Trades</h5>
+            <p class=\"card-text fs-4\">{{ stats.total }}</p>
+          </div>
+        </div>
+      </div>
+      <div class=\"col-md-3\">
+        <div class=\"card text-center\">
+          <div class=\"card-body\">
+            <h5 class=\"card-title\">Total TP</h5>
+            <p class=\"card-text fs-4 text-success\">{{ stats.tp }}</p>
+          </div>
+        </div>
+      </div>
+      <div class=\"col-md-3\">
+        <div class=\"card text-center\">
+          <div class=\"card-body\">
+            <h5 class=\"card-title\">Total SL</h5>
+            <p class=\"card-text fs-4 text-danger\">{{ stats.sl }}</p>
+          </div>
+        </div>
+      </div>
+      <div class=\"col-md-3\">
+        <div class=\"card text-center\">
+          <div class=\"card-body\">
+            <h5 class=\"card-title\">Winrate</h5>
+            <p class=\"card-text fs-4\">{{ stats.winrate }}%</p>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <h4 class=\"mb-3\">Histori Trading</h4>
-    <table class=\"table table-bordered table-striped shadow-sm\">
-      <thead>
-        <tr>
-          <th>Action</th>
-          <th>No</th>
-          <th>Tanggal & Waktu</th>
-          <th>Equity Awal</th>
-          <th>Lot</th>
-          <th>Open Price</th>
-          <th>SL</th>
-          <th>TP</th>
-          <th>Hasil</th>
-          <th>Keterangan</th>
-          <th>Profit</th>
-          <th>Equity After</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for trade in trades %}
-        <tr>
-          <td>
-            <a href=\"/edit/{{ trade._id }}\" class=\"btn btn-sm btn-warning\"><i class=\"bi bi-pencil-square\"></i></a>
-            <a href=\"/delete/{{ trade._id }}\" class=\"btn btn-sm btn-danger\" onclick=\"return confirm('Yakin mau hapus data ini?')\"><i class=\"bi bi-trash\"></i></a>
-          </td>
-          <td>{{ loop.index }}</td>
-          <td>{{ trade.date }}</td>
-          <td>${{ '%.2f'|format(trade.equity) }}</td>
-          <td>{{ trade.lot }}</td>
-          <td>{{ trade.open_price }}</td>
-          <td>{{ trade.sl }}</td>
-          <td>{{ trade.tp }}</td>
-          <td class=\"{{ 'result-tp' if trade.result == 'TP' else 'result-sl' }}\">{{ trade.result }}</td>
-          <td>{{ trade.note }}</td>
-          <td>${{ '%.2f'|format(trade.equity_after - trade.equity) }}</td>
-          <td>${{ '%.2f'|format(trade.equity_after) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class=\"table-responsive\">
+      <table id=\"tradeTable\" class=\"table table-bordered table-striped shadow-sm\">
+        <thead>
+          <tr>
+            <th>Action</th>
+            <th>No</th>
+            <th>Tanggal & Waktu</th>
+            <th>Equity Awal</th>
+            <th>Lot</th>
+            <th>Open Price</th>
+            <th>SL</th>
+            <th>TP</th>
+            <th>Hasil</th>
+            <th>Keterangan</th>
+            <th>Profit</th>
+            <th>Equity After</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trade in trades %}
+          <tr>
+            <td>
+              <a href=\"/edit/{{ trade._id }}\" class=\"btn btn-sm btn-warning\"><i class=\"bi bi-pencil-square\"></i></a>
+              <a href=\"/delete/{{ trade._id }}\" class=\"btn btn-sm btn-danger\" onclick=\"return confirm('Yakin mau hapus data ini?')\"><i class=\"bi bi-trash\"></i></a>
+            </td>
+            <td>{{ loop.index }}</td>
+            <td>{{ trade.date }}</td>
+            <td>${{ '%.2f'|format(trade.equity) }}</td>
+            <td>{{ trade.lot }}</td>
+            <td>{{ trade.open_price }}</td>
+            <td>{{ trade.sl }}</td>
+            <td>{{ trade.tp }}</td>
+            <td class=\"{{ 'result-tp' if trade.result == 'TP' else 'result-sl' }}\">{{ trade.result }}</td>
+            <td>{{ trade.note }}</td>
+            <td>${{ '%.2f'|format(trade.equity_after - trade.equity) }}</td>
+            <td>${{ '%.2f'|format(trade.equity_after) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
+  <script src=\"https://code.jquery.com/jquery-3.7.0.min.js\"></script>
+  <script src=\"https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js\"></script>
+  <script src=\"https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js\"></script>
   <script>
+    $(document).ready(function() {
+      $('#tradeTable').DataTable();
+    });
     function toggleTheme() {
       const body = document.getElementById('body');
-      body.classList.toggle('dark');
-      localStorage.setItem('theme', body.classList.contains('dark') ? 'dark' : 'light');
+      const dark = body.classList.toggle('dark');
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+      document.querySelectorAll('.dataTables_wrapper').forEach(e => {
+        if (dark) e.classList.add('dark');
+        else e.classList.remove('dark');
+      });
     }
     window.onload = () => {
       if (localStorage.getItem('theme') === 'dark') {
         document.getElementById('body').classList.add('dark');
+        setTimeout(() => {
+          document.querySelectorAll('.dataTables_wrapper').forEach(e => e.classList.add('dark'));
+        }, 100);
       }
     }
   </script>
