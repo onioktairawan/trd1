@@ -1,8 +1,8 @@
-from flask import Flask, request, redirect, render_template_string, send_file, session, url_for
+from flask import Flask, request, redirect, render_template_string, send_file, session
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from datetime import datetime
-from config import MONGO_URI, DB_NAME, COLLECTION_NAME
+from config import MONGO_URI, DB_NAME, COLLECTION_NAME, USERS_COLLECTION_NAME
 from login_system import register_routes, protect
 import csv
 import io
@@ -14,9 +14,10 @@ app.secret_key = 'supersecretkey'
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 collection = db[COLLECTION_NAME]
-users_collection = db['users']
+users_collection = db[USERS_COLLECTION_NAME]
 
 register_routes(app, users_collection)
+
 HTML_TEMPLATE = """
 <!doctype html>
 <html lang=\"en\">
@@ -218,6 +219,8 @@ def index():
     check = protect()
     if check: return check
 
+    username = session["username"]
+
     if request.method == 'POST':
         equity = float(request.form['equity'])
         lot = float(request.form['lot'])
@@ -226,18 +229,17 @@ def index():
         tp = float(request.form['tp'])
         result = request.form['result']
         note = request.form['note']
+        pip_value = 100 * lot
 
-        pip_value = 100 * lot  # XAUUSD pip value
-
-        # ✅ Perhitungan sesuai arah (Buy/Sell)
         if note == 'Buy':
             pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
-        else:  # Sell
+        else:
             pnl = (open_price - tp) * pip_value if result == 'TP' else (sl - open_price) * pip_value * -1
 
         equity_after = equity + pnl
 
         trade = {
+            "username": username,
             "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             "equity": equity,
             "lot": lot,
@@ -252,7 +254,7 @@ def index():
         collection.insert_one(trade)
         return redirect('/')
 
-    trades = list(collection.find().sort("date", -1))
+    trades = list(collection.find({"username": username}).sort("date", -1))
     tp_count = sum(1 for t in trades if t['result'] == 'TP')
     sl_count = sum(1 for t in trades if t['result'] == 'SL')
     total = len(trades)
@@ -270,17 +272,12 @@ def index():
 
     return render_template_string(HTML_TEMPLATE, trades=trades, stats=stats, edit_data=None)
 
-@app.route('/delete/<id>')
-def delete(id):
-    check = protect()
-    if check: return check
-    collection.delete_one({"_id": ObjectId(id)})
-    return redirect('/')
-
 @app.route('/edit/<id>', methods=['GET', 'POST'])
 def edit(id):
     check = protect()
     if check: return check
+
+    username = session["username"]
 
     if request.method == 'POST':
         equity = float(request.form['equity'])
@@ -290,10 +287,8 @@ def edit(id):
         tp = float(request.form['tp'])
         result = request.form['result']
         note = request.form['note']
-
         pip_value = 100 * lot
 
-        # ✅ Perhitungan sesuai arah (Buy/Sell)
         if note == 'Buy':
             pnl = (tp - open_price) * pip_value if result == 'TP' else (sl - open_price) * pip_value
         else:
@@ -301,26 +296,30 @@ def edit(id):
 
         equity_after = equity + pnl
 
-        collection.update_one({"_id": ObjectId(id)}, {"$set": {
-            "equity": equity,
-            "lot": lot,
-            "open_price": open_price,
-            "sl": sl,
-            "tp": tp,
-            "result": result,
-            "note": note,
-            "equity_after": equity_after
-        }})
+        collection.update_one(
+            {"_id": ObjectId(id), "username": username},
+            {"$set": {
+                "equity": equity,
+                "lot": lot,
+                "open_price": open_price,
+                "sl": sl,
+                "tp": tp,
+                "result": result,
+                "note": note,
+                "equity_after": equity_after
+            }}
+        )
         return redirect('/')
 
-    trade = collection.find_one({"_id": ObjectId(id)})
-    trades = list(collection.find().sort("date", -1))
+    trade = collection.find_one({"_id": ObjectId(id), "username": username})
+    trades = list(collection.find({"username": username}).sort("date", -1))
     tp_count = sum(1 for t in trades if t['result'] == 'TP')
     sl_count = sum(1 for t in trades if t['result'] == 'SL')
     total = len(trades)
     start_equity = trades[-1]['equity'] if trades else 0
     end_equity = trades[0]['equity_after'] if trades else 0
     winrate = round((tp_count / total) * 100, 2) if total else 0
+
     stats = {
         "tp": tp_count,
         "sl": sl_count,
@@ -328,19 +327,32 @@ def edit(id):
         "winrate": winrate,
         "growth": end_equity - start_equity
     }
+
     return render_template_string(HTML_TEMPLATE, trades=trades, stats=stats, edit_data=trade)
+
+@app.route('/delete/<id>')
+def delete(id):
+    check = protect()
+    if check: return check
+
+    username = session["username"]
+    collection.delete_one({"_id": ObjectId(id), "username": username})
+    return redirect('/')
 
 @app.route('/export')
 def export():
     check = protect()
     if check: return check
 
-    trades = list(collection.find().sort("date", -1))
+    username = session["username"]
+    trades = list(collection.find({"username": username}).sort("date", -1))
+
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Tanggal', 'Equity', 'Lot', 'Open Price', 'SL', 'TP', 'Hasil', 'Keterangan', 'Equity After'])
     for t in trades:
         writer.writerow([t['date'], t['equity'], t['lot'], t['open_price'], t['sl'], t['tp'], t['result'], t['note'], t['equity_after']])
+
     output.seek(0)
     return send_file(io.BytesIO(output.read().encode()), mimetype='text/csv', as_attachment=True, download_name='jurnal_trading.csv')
 
