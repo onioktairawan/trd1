@@ -22,12 +22,13 @@ HTML_TEMPLATE = """
 <!doctype html>
 <html lang=\"en\">
 <head>
-  <meta charset=\"UTF-8\">
+    <meta charset="UTF-8">
   <title>Jurnal Trading</title>
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-  <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css\" rel=\"stylesheet\">
-  <link href=\"https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css\" rel=\"stylesheet\">
-  <link href=\"https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css\" rel=\"stylesheet\">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="https://i.pinimg.com/736x/37/c4/45/37c4456556677bfdeae77827fcd9bb58.jpg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
   <style>
     body.dark { background-color: #121212 !important; color: #f0f0f0; }
     .dark .table, .dark .form-control, .dark .btn { background-color: #333 !important; color: #fff; border-color: #555; }
